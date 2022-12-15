@@ -1,5 +1,4 @@
 import Board from "./Board.js";
-import * as fs from "fs";
 
 const board = new Board([
     ["O", "X", "O"],
@@ -7,8 +6,6 @@ const board = new Board([
     [" ", "O", " "],
 ]);
 
-console.log(board.getWinner());
-// console.log(board.toString());
 board.calculateMoves();
 board.evalulateTree();
 

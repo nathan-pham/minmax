@@ -111,13 +111,17 @@ export default class Board {
         const futureBoards = [];
         this.traverseBoard((cell, i, j) => {
             if (cell === OPTIONS._) {
-                futureBoards.push(
-                    this.copy()
-                        .setValue(i, j, this.turn)
-                        .incrementTurn()
-                        .setParent(this)
-                        .calculateMoves()
-                );
+                const futureBoard = this.copy()
+                    .setValue(i, j, this.turn)
+                    .incrementTurn()
+                    .setParent(this);
+
+                // if the board has a winner or the board is filled, do not calculate moves
+                if (!(futureBoard.getWinner() || futureBoard.isFilled())) {
+                    futureBoard.calculateMoves();
+                }
+
+                futureBoards.push(futureBoard);
             }
         });
 
@@ -193,49 +197,39 @@ export default class Board {
             const winner = board.getWinner();
             if (winner) {
                 board.v = 0;
-                if (winner === OPTIONS.O) {
-                    board.v = -1;
-                } else if (winner === OPTIONS.X) {
+                if (winner === OPTIONS.X) {
                     board.v = 1;
+                } else if (winner === OPTIONS.O) {
+                    board.v = -1;
                 }
+            } else if (board.isFilled()) {
+                board.v = 0;
             }
 
-            // board has children that are evaluated
-            else if (
-                board.futureBoards.find((b) => b.v !== null) instanceof Board
-            ) {
-                const vs = board.futureBoards.map((b) => b.v);
-                if (vs.includes(null)) {
-                    for (const childBoard of board.futureBoards) {
-                        analyze(childBoard);
-                    }
+            const vs = board.futureBoards.map((b) => b.v);
 
-                    return;
-                }
-
-                // case 1: all of child boards have the same v
-                if (Board.isUniform(vs)) {
-                    board.v = vs[0];
-                }
-
-                // case 2: it's X's turn and the child boards have a winning state
-                if (this.turn === OPTIONS.X && vs.includes(1)) {
-                    board.v = 1;
-                }
-
-                // case 3: it's O's turn and the child boards have a winning state
-                if (this.turn === OPTIONS.O && vs.includes(-1)) {
-                    board.v = -1;
-                }
-            } else {
+            if (vs.includes(null)) {
                 for (const childBoard of board.futureBoards) {
                     analyze(childBoard);
                 }
+
                 board.parentBoard && analyze(board.parentBoard);
             }
-            // else {
 
-            // }
+            // case 1: all of child boards have the same v
+            else if (Board.isUniform(vs) && typeof vs[0] === "number") {
+                board.v = vs[0];
+            }
+
+            // case 2: it's X's turn and the child boards have a winning state
+            else if (board.turn === OPTIONS.X && vs.includes(1)) {
+                board.v = 1;
+            }
+
+            // case 3: it's O's turn and the child boards have a winning state
+            else if (board.turn === OPTIONS.O && vs.includes(-1)) {
+                board.v = -1;
+            }
         };
 
         analyze(this);
@@ -265,7 +259,7 @@ export default class Board {
 
     log() {
         console.group();
-        console.log(`${this.toString()}\nv = ${this.v}`);
+        console.log(`${this.toString()}v = ${this.v}\n`);
         this.futureBoards.forEach((b) => b.log());
         console.groupEnd();
     }
