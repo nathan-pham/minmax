@@ -1,18 +1,34 @@
-import Board from "./Board.js";
+import Board, { OPTIONS } from "./Board.js";
+import prompt from "./prompt.js";
 
-const board = new Board([
-    ["O", "X", "O"],
-    ["X", " ", "X"],
-    [" ", "O", " "],
+let board = new Board([
+    [" ", " ", " "],
+    [" ", " ", " "],
+    [" ", " ", " "],
 ]);
 
-board.calculateMoves();
-board.evalulateTree();
+while (true) {
+    console.log(board.toString());
 
-board.log();
+    // your move
+    const moveX = await prompt("x > ");
+    const moveY = await prompt("y > ");
+    board.setValue(moveY, moveX, board.turn);
+    board.incrementTurn().calculateMoves().evalulateTree();
+    const vs = board.futureBoards.map((b) => b.v);
 
-// console.log(board);
+    console.log(vs);
 
-// fs.writeFileSync("./test.json", JSON.stringify(board.toJSON(), null, 4));
-
-// console.log(board.futureBoards.length);
+    if (vs.includes(1)) {
+        board = board.futureBoards[vs.indexOf(1)];
+        console.log("test 1");
+    } else if (vs.includes(-1)) {
+        board = board.futureBoards[vs.indexOf(-1)];
+        console.log("test 2");
+    } else if (vs.includes(0)) {
+        board = board.futureBoards[vs.indexOf(0)];
+        console.log("test 3");
+    } else {
+        console.log("test 4");
+    }
+}

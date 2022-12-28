@@ -40,6 +40,10 @@ export default class Board {
         return this.state[i][j];
     }
 
+    setState(state) {
+        this.state = state;
+    }
+
     copyState() {
         const state = [];
         for (let i = 0; i < this.rows; i++) {
@@ -109,17 +113,19 @@ export default class Board {
 
     calculateMoves() {
         const futureBoards = [];
+
+        if (this.getWinner() || this.isFilled()) {
+            this.futureBoards = futureBoards;
+            return this;
+        }
+
         this.traverseBoard((cell, i, j) => {
             if (cell === OPTIONS._) {
                 const futureBoard = this.copy()
                     .setValue(i, j, this.turn)
                     .incrementTurn()
+                    .calculateMoves()
                     .setParent(this);
-
-                // if the board has a winner or the board is filled, do not calculate moves
-                if (!(futureBoard.getWinner() || futureBoard.isFilled())) {
-                    futureBoard.calculateMoves();
-                }
 
                 futureBoards.push(futureBoard);
             }
@@ -130,9 +136,12 @@ export default class Board {
     }
 
     getWinner() {
+        const winningRow = (row) =>
+            Board.isUniform(row) && row[0] !== OPTIONS._;
+
         // check rows for winner
         for (const row of this.state) {
-            if (Board.isUniform(row)) {
+            if (winningRow(row)) {
                 return row[0];
             }
         }
@@ -144,7 +153,7 @@ export default class Board {
                 col.push(this.getValue(j, i));
             }
 
-            if (Board.isUniform(col)) {
+            if (winningRow(col)) {
                 return col[0];
             }
         }
@@ -157,7 +166,7 @@ export default class Board {
             this.getValue(2, 2),
         ];
 
-        if (Board.isUniform(downwardSlant)) {
+        if (winningRow(downwardSlant)) {
             return downwardSlant[0];
         }
 
@@ -168,7 +177,7 @@ export default class Board {
             this.getValue(2, 0),
         ];
 
-        if (Board.isUniform(upwardSlant)) {
+        if (winningRow(upwardSlant)) {
             return upwardSlant[0];
         }
 
@@ -187,56 +196,92 @@ export default class Board {
         return filled;
     }
 
-    evalulateTree() {
-        const analyze = (board) => {
-            // exit condition: we already calculated a v
-            if (board.v !== null) {
-                return;
-            }
+    /**
+     * Get a flattened list of boards & their depth
+     * @param {number} depth - Initial starting depth
+     * @returns {{board: Board, depth: number}[]} Array of boards
+     */
+    flattenBoards(depth = 0) {
+        const boards = [{ depth, board: this }];
+        if (this.futureBoards.length === 0) {
+            return boards;
+        }
 
-            const winner = board.getWinner();
-            if (winner) {
-                board.v = 0;
-                if (winner === OPTIONS.X) {
-                    board.v = 1;
-                } else if (winner === OPTIONS.O) {
-                    board.v = -1;
-                }
-            } else if (board.isFilled()) {
-                board.v = 0;
-            }
+        for (const board of this.futureBoards) {
+            boards.push(...board.flattenBoards(depth + 1));
+        }
 
-            const vs = board.futureBoards.map((b) => b.v);
-
-            if (vs.includes(null)) {
-                for (const childBoard of board.futureBoards) {
-                    analyze(childBoard);
-                }
-
-                board.parentBoard && analyze(board.parentBoard);
-            }
-
-            // case 1: all of child boards have the same v
-            else if (Board.isUniform(vs) && typeof vs[0] === "number") {
-                board.v = vs[0];
-            }
-
-            // case 2: it's X's turn and the child boards have a winning state
-            else if (board.turn === OPTIONS.X && vs.includes(1)) {
-                board.v = 1;
-            }
-
-            // case 3: it's O's turn and the child boards have a winning state
-            else if (board.turn === OPTIONS.O && vs.includes(-1)) {
-                board.v = -1;
-            }
-        };
-
-        analyze(this);
+        return boards;
     }
 
-    static topMostParent(board) {
-        return board.parentBoard && Board.topMostParent(board.parentBoard);
+    /**
+     * Get the appropriate value for a board
+     * @param {Board} board - Board to analyze
+     */
+    static analyzeBoard(board) {
+        // exit condition: we already calculated a v
+        if (board.v !== null) {
+            return;
+        }
+
+        const vs = board.futureBoards.map((b) => b.v);
+        if (vs.includes(null)) {
+            throw new Error("A child board has not been analyzed...");
+        }
+
+        const winner = board.getWinner();
+        if (winner) {
+            board.v = 0;
+            if (winner === OPTIONS.X) {
+                board.v = 1;
+            } else if (winner === OPTIONS.O) {
+                board.v = -1;
+            }
+        } else if (board.isFilled()) {
+            board.v = 0;
+        }
+
+        // case 1: all of child boards have the same v
+        if (Board.isUniform(vs) && typeof vs[0] === "number") {
+            board.v = vs[0];
+        }
+
+        // case 2: it's X's turn and the child boards have a winning state
+        else if (board.turn === OPTIONS.X) {
+            if (vs.includes(1)) {
+                board.v = 1;
+            } else if (vs.includes(0)) {
+                board.v = 0;
+            } else if (vs.includes(-1)) {
+                board.v = -1;
+            }
+        }
+
+        // case 3: it's O's turn and the child boards have a winning state
+        else if (board.turn === OPTIONS.O) {
+            if (vs.includes(-1)) {
+                board.v = -1;
+            } else if (vs.includes(0)) {
+                board.v = 0;
+            } else if (vs.includes(1)) {
+                board.v = 1;
+            }
+        }
+        if (board.v === null) {
+            throw new Error("hm");
+        }
+    }
+
+    evalulateTree() {
+        let boards = this.flattenBoards();
+        boards.sort((boardA, boardB) => boardB.depth - boardA.depth);
+        boards = boards.map(({ board }) => board);
+
+        for (const board of boards) {
+            Board.analyzeBoard(board);
+        }
+
+        return this;
     }
 
     static isUniform(array) {
