@@ -44,15 +44,12 @@ while (true) {
         continue;
     }
 
-    // shouldn't happen
-    // if (vs.includes(1)) {
-    //     console.log("hmm");
-    //     board = board.futureBoards[vs.indexOf(1)];
-    // } else
-
-    if (vs.includes(0)) {
+    if (vs.includes(1)) {
+        board = board.futureBoards[vs.indexOf(1)];
+    } else if (vs.includes(0)) {
         board = board.futureBoards[vs.indexOf(0)];
     } else if (vs.includes(-1)) {
+        console.log("losing path");
         board = board.futureBoards[vs.indexOf(-1)];
     } else {
         console.log(vs);
