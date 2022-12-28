@@ -83,7 +83,7 @@ export default class Board {
             boardString += `| ${rowString} |\n${spacer}`;
         }
 
-        return boardString;
+        return boardString.trim();
     }
 
     createBoard() {
@@ -309,3 +309,10 @@ export default class Board {
         console.groupEnd();
     }
 }
+
+export const createBoard = () =>
+    new Board([
+        [" ", " ", " "],
+        [" ", " ", " "],
+        [" ", " ", " "],
+    ]);
